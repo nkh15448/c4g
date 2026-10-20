@@ -296,6 +296,7 @@ function card({ doc, terms }) {
 
   const isNew = Date.now() - Date.parse(doc.added) < NEW_DAYS * 864e5;
   const flag = doc.error ? '<span class="warn">Couldn’t read this PDF, so only its title is searchable</span>'
+    : doc.noText && doc.scrambled ? '<span class="warn">The text in this PDF is scrambled, so only its title is searchable</span>'
     : doc.noText ? '<span class="warn">Scanned PDF, so only its title is searchable</span>' : '';
 
   return `<article class="card">

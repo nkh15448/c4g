@@ -26,10 +26,22 @@ const args = parseArgs(process.argv.slice(2));
 const PLANS = resolve(args.plans ?? join(ROOT, 'lesson-plans'));
 const OUT = resolve(args.out ?? join(ROOT, 'dist'));
 const CACHE = join(ROOT, '.cache', 'text');
-const CACHE_VERSION = 1;   // bump when extraction changes, to re-read every PDF
+const CACHE_VERSION = 2;   // bump when extraction changes, to re-read every PDF
 const MIN_PAGE_LETTERS = 25; // fewer than this and a page is treated as scanned
 const HAS_OCR = hasCommand('pdftoppm') && hasCommand('tesseract');
 const IN_ACTIONS = process.env.GITHUB_ACTIONS === 'true';
+
+// For looksScrambled(): words and letter frequencies typical of English.
+const COMMON_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'of', 'to', 'in', 'is', 'are', 'for', 'on', 'with',
+  'as', 'at', 'by', 'be', 'this', 'that', 'it', 'you', 'your', 'they', 'their',
+  'will', 'can', 'if', 'or', 'not', 'from', 'what', 'how', 'each', 'one', 'two',
+]);
+const ENGLISH_LETTERS = {
+  a: 8.2, b: 1.5, c: 2.8, d: 4.3, e: 12.7, f: 2.2, g: 2.0, h: 6.1, i: 7.0,
+  j: 0.15, k: 0.8, l: 4.0, m: 2.4, n: 6.7, o: 7.5, p: 1.9, q: 0.1, r: 6.0,
+  s: 6.3, t: 9.1, u: 2.8, v: 1.0, w: 2.4, x: 0.15, y: 2.0, z: 0.07,
+};
 
 const files = findPdfs(PLANS).sort((a, b) => a.localeCompare(b));
 const addedDates = gitAddedDates(PLANS);
@@ -37,7 +49,7 @@ const docs = [];
 
 for (const [id, file] of files.entries()) {
   const rel = relative(PLANS, file).split(sep).join('/');
-  const { pages, ocrPages, unreadPages, error } = await readPdf(file);
+  const { pages, ocrPages, unreadPages, scrambledPages = [], error } = await readPdf(file);
   docs.push({
     id,
     path: `lesson-plans/${rel}`,
@@ -47,6 +59,7 @@ for (const [id, file] of files.entries()) {
     pages,
     ocr: ocrPages.length > 0,
     noText: !error && unreadPages.length === pages.length,
+    scrambled: scrambledPages.length > 0,
     error: error ?? null,
   });
 }
@@ -97,7 +110,7 @@ async function readPdf(file) {
 }
 
 async function extract(file, bytes) {
-  const result = { pages: [], ocrPages: [], unreadPages: [], ocrTried: HAS_OCR };
+  const result = { pages: [], ocrPages: [], unreadPages: [], scrambledPages: [], ocrTried: HAS_OCR };
   const task = getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, verbosity: 0 });
   let pdf;
   try {
@@ -117,13 +130,17 @@ async function extract(file, bytes) {
       page.cleanup();
     } catch { /* unreadable page: falls through to OCR */ }
     text = clean(text);
-    if (countLetters(text) < MIN_PAGE_LETTERS) {
+    if (!isReadable(text)) {
       const ocr = HAS_OCR ? clean(ocrPage(file, n)) : '';
-      if (countLetters(ocr) >= MIN_PAGE_LETTERS) {
+      if (isReadable(ocr)) {
         text = ocr;
         result.ocrPages.push(n);
       } else {
         result.unreadPages.push(n);
+        if (looksScrambled(text)) {
+          result.scrambledPages.push(n);
+          text = ''; // don't index gibberish
+        }
       }
     }
     result.pages.push(text);
@@ -148,7 +165,7 @@ function ocrPage(file, n) {
 function clean(text) {
   return text
     .normalize('NFKC')                         // ligatures (ﬁ → fi), full-width chars
-    .replace(/­/g, '')                    // soft hyphens
+    .replace(/\u00ad/g, '')                    // soft hyphens
     .replace(/(\p{Ll})-\n(\p{Ll})/gu, '$1$2')  // words hyphenated across lines
     .replace(/[^\S\n]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
@@ -158,6 +175,32 @@ function clean(text) {
 
 function countLetters(text) {
   return (text.match(/\p{L}/gu) ?? []).length;
+}
+
+function isReadable(text) {
+  return countLetters(text) >= MIN_PAGE_LETTERS && !looksScrambled(text);
+}
+
+// Some PDFs have a broken text layer: the page looks fine, but the text
+// underneath is gibberish ("Sgdqd “qd 01 rsnmdr" for "There are 12 stones").
+// Opening a PDF in a browser and using Print → Save as PDF does this. Real
+// English has plenty of common words and a typical mix of letters; gibberish
+// has neither, so a page failing both checks gets OCR'd instead.
+function looksScrambled(text) {
+  const words = text.toLowerCase().match(/[a-z]+/g) ?? [];
+  if (words.length < 20) return false;
+  const commonShare = words.filter((w) => COMMON_WORDS.has(w)).length / words.length;
+  const counts = {};
+  for (const w of words) for (const ch of w) counts[ch] = (counts[ch] ?? 0) + 1;
+  let dot = 0, ours = 0, english = 0;
+  for (const [ch, freq] of Object.entries(ENGLISH_LETTERS)) {
+    const c = counts[ch] ?? 0;
+    dot += c * freq;
+    ours += c * c;
+    english += freq * freq;
+  }
+  const letterSimilarity = dot / Math.sqrt(ours * english); // 1 = typical English
+  return commonShare < 0.1 && letterSimilarity < 0.85;
 }
 
 /** "math/grade-3/Week_6.pdf" → title, subject and grade for the filters. */
@@ -260,7 +303,11 @@ function report() {
   };
   for (const d of docs) {
     if (d.error) warn(d, `couldn't open this PDF (${d.error}). Only its title is searchable.`);
-    else if (d.noText) {
+    else if (d.noText && d.scrambled) {
+      warn(d, HAS_OCR
+        ? 'the text inside this PDF is scrambled and OCR couldn\'t read it either. Only its title is searchable.'
+        : 'the text inside this PDF is scrambled (common after Print → Save as PDF). It will be OCR\'d on GitHub; locally only its title is searchable.');
+    } else if (d.noText) {
       warn(d, HAS_OCR
         ? 'no readable text, even with OCR. Only its title is searchable.'
         : 'looks scanned (no text). It will be OCR\'d on GitHub; locally only its title is searchable.');
