@@ -18,7 +18,8 @@ That's all. About a minute later the plan is searchable on the site. To watch pr
 
 **Tips**
 
-- PDFs exported from Google Docs, Slides, Canva or Word work best, because their text can be read directly. Scanned or photographed pages are run through OCR automatically, but that's less reliable.
+- PDFs exported from Google Docs, Slides, Canva, Word or Overleaf work best, because their text can be read directly. Scanned or photographed pages are run through OCR automatically, but that's less reliable.
+- Upload the original PDF (for example Overleaf's **Download PDF**). Don't open a PDF in a browser and re-save it with **Print → Save as PDF**: that scrambles the text inside, so the site has to fall back on OCR.
 - The file name is shown as the plan's title, so a descriptive name still helps (`Week 6 - Fractions and Time.pdf`), but it isn't required to be found.
 - To replace a plan, upload a new version with the same name into the same folder. To remove one, open the file and choose **⋯ → Delete file**.
 
