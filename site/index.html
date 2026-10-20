@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Lesson Plan Finder · Cats4Ghana</title>
+  <meta name="description" content="Search inside every Cats4Ghana lesson plan, not just the titles.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="modulepreload" href="vendor/minisearch.js">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead wrap">
+    <p class="eyebrow">
+      <svg class="flag" viewBox="0 0 30 20" aria-hidden="true">
+        <rect width="30" height="20" fill="#006b3f"/>
+        <rect width="30" height="13.34" fill="#fcd116"/>
+        <rect width="30" height="6.67" fill="#ce1126"/>
+        <polygon fill="#111" points="15,6.8 15.73,8.99 18.04,9.01 16.19,10.39 16.88,12.59 15,11.25 13.12,12.59 13.81,10.39 11.96,9.01 14.27,8.99"/>
+      </svg>
+      Cats4Ghana
+    </p>
+    <h1>Lesson Plan Finder</h1>
+    <p class="lede">Search inside every lesson plan, not just the titles.</p>
+  </header>
+
+  <div id="sentinel" aria-hidden="true"></div>
+  <div class="searchbar" role="search">
+    <div class="wrap">
+      <label class="field">
+        <span class="visually-hidden">Search lesson plans</span>
+        <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+        <input id="q" type="search" placeholder="Try “fractions”, “water cycle”, “similes”…" autocomplete="off" spellcheck="false" enterkeyhint="search" disabled>
+        <kbd class="hint" title="Press / to search">/</kbd>
+        <button id="clear" class="clear" type="button" aria-label="Clear search" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+        </button>
+      </label>
+      <div class="filters">
+        <div class="chips" id="subjects" role="group" aria-label="Subject"></div>
+        <div class="chips" id="grades" role="group" aria-label="Grade" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <p id="status" class="status" aria-live="polite">Loading lesson plans…</p>
+    <div id="results" class="results"></div>
+    <button id="more" class="more" type="button" hidden>Show more</button>
+  </main>
+
+  <footer class="footer wrap">
+    <p id="stats"></p>
+    <p><a id="guide" hidden>Lesson plan makers: how to add a plan →</a></p>
+  </footer>
+</body>
+</html>

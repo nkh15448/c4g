@@ -1,0 +1,61 @@
+# Rebuilds the search index and republishes the site on every push to main,
+# including PDFs uploaded through github.com. Takes about a minute.
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer upload waits rather than cancelling a live deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history, so each plan's "Added" date is right
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install OCR tools (for scanned PDFs)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-eng
+
+      # Text pulled out of each PDF is cached by file contents, so only new or
+      # changed PDFs are read (and OCR'd) on each run.
+      - uses: actions/cache@v6
+        with:
+          path: .cache
+          key: pdf-text-${{ hashFiles('lesson-plans/**') }}
+          restore-keys: pdf-text-
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
