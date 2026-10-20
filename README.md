@@ -2,7 +2,7 @@
 
 A search page for every Cats4Ghana lesson plan. It reads the text *inside* each PDF, so tutors can find a plan by what it covers even when the file is called "Week 6". Small typos still match ("photosynthsis" finds photosynthesis), and each result links straight to the page where the match is.
 
-**Site:** `https://<owner>.github.io/<repo>/` (fill in once it's set up)
+**Site:** https://nkh15448.github.io/c4g/
 
 ## Adding a lesson plan
 
